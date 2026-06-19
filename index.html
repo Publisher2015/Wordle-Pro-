@@ -32,19 +32,17 @@ body{
 
 h1{letter-spacing:3px}
 
-/* TOP RIGHT BAR FIXED */
+/* TOP BAR */
 #topBar{
   position:fixed;
   top:12px;
   right:12px;
-
   display:flex;
   align-items:center;
-  justify-content:flex-end;
   gap:10px;
 }
 
-/* DARK MODE SWITCH */
+/* SWITCH */
 #modeSwitch{
   width:50px;
   height:26px;
@@ -74,7 +72,7 @@ body.dark #modeSwitch::after{
   transform:translateX(24px);
 }
 
-/* HINT BUTTON */
+/* HINT */
 #hintBtn{
   background:var(--key);
   color:var(--text);
@@ -166,19 +164,6 @@ body.dark #modeSwitch::after{
   padding:4px 8px;
   cursor:pointer;
 }
-
-/* CONFETTI */
-.confetti{
-  position:fixed;
-  width:8px;
-  height:8px;
-  top:0;
-  animation:fall 2s linear forwards;
-}
-
-@keyframes fall{
-  to{transform:translateY(100vh) rotate(360deg);opacity:0}
-}
 </style>
 </head>
 
@@ -186,7 +171,6 @@ body.dark #modeSwitch::after{
 
 <h1>WORDLE PRO</h1>
 
-<!-- TOP RIGHT (CORRECT ORDER) -->
 <div id="topBar">
   <span>Dark Mode</span>
   <div id="modeSwitch" onclick="toggleMode()"></div>
@@ -196,14 +180,13 @@ body.dark #modeSwitch::after{
 <div id="board"></div>
 <div id="keyboard"></div>
 
-<!-- HINT POPUP -->
+<!-- POPUPS -->
 <div id="hintBox" class="popup">
   <button class="closeBtn" onclick="closeHint()">X</button>
   <h3>Hint</h3>
   <p id="hintText"></p>
 </div>
 
-<!-- END POPUP -->
 <div id="endBox" class="popup">
   <button class="closeBtn" onclick="closeEnd()">X</button>
   <h2 id="endTitle"></h2>
@@ -212,31 +195,54 @@ body.dark #modeSwitch::after{
 
 <script>
 
-/* WORD */
-const answer = "HORSE";
+/* =========================
+   LOCKED GAME (NO RESET CHEAT)
+========================= */
+const SAVE_KEY = "wordle_pro_locked_v3";
 
-/* HINT */
-function generateHint(word){
-  const map = {
-    HORSE:"A strong animal used for riding.",
-    APPLE:"A common fruit.",
-    HOUSE:"A place where people live.",
-    WATER:"Essential for life.",
-    TRAIN:"Runs on tracks."
+/* Create persistent game ONCE */
+let save = JSON.parse(localStorage.getItem(SAVE_KEY));
+
+if(!save){
+  save = {
+    answer: "HORSE",
+    row:0,
+    col:0,
+    used:[],
+    grid:Array.from({length:6},()=>Array(5).fill("")),
+    gameOver:false
   };
-  return map[word] || ("The word has " + word.length + " letters.");
+  localStorage.setItem(SAVE_KEY, JSON.stringify(save));
 }
 
-const hint = generateHint(answer);
+/* STATE */
+let answer = save.answer;
+let row = save.row;
+let col = save.col;
+let used = new Set(save.used);
+let grid = save.grid;
+let gameOver = save.gameOver;
 
-let row=0,col=0,gameOver=false;
-let used=new Set();
-let grid=Array.from({length:6},()=>Array(5).fill(""));
+/* =========================
+   SAVE FUNCTION
+========================= */
+function saveGame(){
+  localStorage.setItem(SAVE_KEY, JSON.stringify({
+    answer,
+    row,
+    col,
+    used:[...used],
+    grid,
+    gameOver
+  }));
+}
 
+/* =========================
+   BOARD
+========================= */
 const board=document.getElementById("board");
 const kb=document.getElementById("keyboard");
 
-/* BOARD */
 for(let i=0;i<30;i++){
   const d=document.createElement("div");
   d.className="tile";
@@ -251,7 +257,9 @@ function render(){
   }
 }
 
-/* KEY COLORS */
+/* =========================
+   KEY COLORS
+========================= */
 function colorKey(letter,cls){
   document.querySelectorAll(".key").forEach(k=>{
     if(k.dataset.k===letter){
@@ -261,38 +269,13 @@ function colorKey(letter,cls){
   });
 }
 
-/* CONFETTI */
-function confetti(){
-  for(let i=0;i<50;i++){
-    const d=document.createElement("div");
-    d.className="confetti";
-    d.style.left=Math.random()*100+"vw";
-    d.style.background=["#538d4e","#b59f3b","#fff"][Math.random()*3|0];
-    document.body.appendChild(d);
-    setTimeout(()=>d.remove(),2000);
-  }
-}
-
-/* END */
-function showEnd(win){
-  gameOver=true;
-
-  document.getElementById("endBox").style.display="block";
-
-  document.getElementById("endTitle").textContent =
-    win ? "🎉 You Win!" : "Better Luck Next Time";
-
-  document.getElementById("endText").textContent =
-    win ? "" : "Word Was: " + answer;
-
-  if(win) confetti();
-}
-
-/* INPUT */
+/* =========================
+   INPUT (keyboard + clicks)
+========================= */
 function input(key){
   if(gameOver) return;
 
-  key=key.toUpperCase();
+  key = key.toUpperCase();
 
   if(key==="ENTER") return submit();
 
@@ -301,6 +284,7 @@ function input(key){
       col--;
       grid[row][col]="";
       render();
+      saveGame();
     }
     return;
   }
@@ -310,13 +294,36 @@ function input(key){
       grid[row][col]=key;
       col++;
       render();
+      saveGame();
     }
   }
 }
 
-/* SUBMIT */
+/* =========================
+   🔥 PHYSICAL KEYBOARD FIX
+========================= */
+document.addEventListener("keydown",(e)=>{
+
+  if(gameOver) return;
+
+  const key = e.key;
+
+  if(key==="Enter"){
+    input("ENTER");
+  }
+  else if(key==="Backspace"){
+    input("BACKSPACE");
+  }
+  else if(/^[a-zA-Z]$/.test(key)){
+    input(key.toUpperCase());
+  }
+});
+
+/* =========================
+   SUBMIT
+========================= */
 function submit(){
-  const guess=grid[row].join("");
+  const guess = grid[row].join("");
 
   if(guess.length<5) return;
 
@@ -324,10 +331,11 @@ function submit(){
     showMessage("Word Already Guessed");
     return;
   }
+
   used.add(guess);
 
   for(let i=0;i<5;i++){
-    const tile=board.children[row*5+i];
+    const tile = board.children[row*5+i];
     tile.classList.add("flip");
 
     setTimeout(()=>{
@@ -347,25 +355,66 @@ function submit(){
   }
 
   if(guess===answer){
+    gameOver=true;
     setTimeout(()=>showEnd(true),600);
-    return;
+  } else {
+    row++;
+    col=0;
+
+    if(row===6){
+      gameOver=true;
+      showEnd(false);
+    }
   }
 
-  row++;
-  col=0;
-
-  if(row===6){
-    showEnd(false);
-  }
+  saveGame();
 }
 
-/* MESSAGE */
+/* =========================
+   POPUPS
+========================= */
 function showMessage(text){
   document.getElementById("hintText").textContent=text;
   document.getElementById("hintBox").style.display="block";
 }
 
-/* KEYBOARD */
+function openHint(){
+  document.getElementById("hintText").textContent =
+    "A 5-letter everyday word.";
+  document.getElementById("hintBox").style.display="block";
+}
+
+function closeHint(){
+  document.getElementById("hintBox").style.display="none";
+}
+
+function closeEnd(){
+  document.getElementById("endBox").style.display="none";
+}
+
+/* =========================
+   END SCREEN
+========================= */
+function showEnd(win){
+  document.getElementById("endBox").style.display="block";
+
+  document.getElementById("endTitle").textContent =
+    win ? "🎉 You Win!" : "Better Luck Next Time";
+
+  document.getElementById("endText").textContent =
+    win ? "" : "Word Was: " + answer;
+}
+
+/* =========================
+   MODE
+========================= */
+function toggleMode(){
+  document.body.classList.toggle("dark");
+}
+
+/* =========================
+   KEYBOARD
+========================= */
 function buildKeyboard(){
   ["QWERTYUIOP","ASDFGHJKL","ENTER ZXCVBNM BACKSPACE"].forEach(r=>{
     const div=document.createElement("div");
@@ -394,26 +443,9 @@ function buildKeyboard(){
   });
 }
 
-/* MODE */
-function toggleMode(){
-  document.body.classList.toggle("dark");
-}
-
-/* HINT */
-function openHint(){
-  document.getElementById("hintText").textContent=hint;
-  document.getElementById("hintBox").style.display="block";
-}
-
-function closeHint(){
-  document.getElementById("hintBox").style.display="none";
-}
-
-function closeEnd(){
-  document.getElementById("endBox").style.display="none";
-}
-
-/* INIT */
+/* =========================
+   INIT
+========================= */
 buildKeyboard();
 render();
 
