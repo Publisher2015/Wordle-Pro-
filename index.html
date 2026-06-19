@@ -87,12 +87,11 @@ function colorKey(letter, cls){
 }
 
 function submit(){
+    const guess = grid[row].join("");
 
-    if(grid[row].some(letter => letter === "")){
+    if(col < 5){
         return msg("Not enough letters");
     }
-
-    const guess = grid[row].join("");
 
     if(!VALID.has(guess)){
         return msg("Not in word list");
