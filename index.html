@@ -8,20 +8,20 @@
 <style>
 :root{
   --bg:#121213;
-  --text:#ffffff;
+  --text:#fff;
   --tile:#3a3a3c;
   --key:#818384;
 }
 
 body.light{
-  --bg:#ffffff;
-  --text:#111111;
+  --bg:#fff;
+  --text:#111;
   --tile:#d3d6da;
   --key:#c0c0c0;
 }
 
 body{
-  font-family:system-ui,sans-serif;
+  font-family:system-ui;
   background:var(--bg);
   color:var(--text);
   text-align:center;
@@ -32,18 +32,18 @@ body{
 
 h1{letter-spacing:3px}
 
-/* SWITCH */
-#switchWrap{
+/* TOP BAR */
+#topBar{
   position:fixed;
   top:12px;
   right:12px;
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:10px;
   font-size:12px;
-  user-select:none;
 }
 
+/* SWITCH */
 #modeSwitch{
   width:50px;
   height:26px;
@@ -73,13 +73,25 @@ body.light #modeSwitch::after{
   transform:translateX(24px);
 }
 
+/* HINT BUTTON */
+#hintBtn{
+  background:var(--key);
+  color:var(--text);
+  border:none;
+  padding:6px 12px;
+  border-radius:20px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:12px;
+}
+
 /* BOARD */
 #board{
   display:grid;
   grid-template-columns:repeat(5,62px);
   gap:6px;
   justify-content:center;
-  margin:20px auto;
+  margin:60px auto 20px;
 }
 
 .tile{
@@ -93,12 +105,19 @@ body.light #modeSwitch::after{
   font-size:2rem;
   font-weight:700;
   text-transform:uppercase;
-  transition:.2s;
 }
 
-.correct{background:#538d4e;border-color:#538d4e;color:white}
-.present{background:#b59f3b;border-color:#b59f3b;color:white}
-.absent{background:#3a3a3c;border-color:#3a3a3c;color:white}
+.flip{animation:flip .5s ease}
+
+@keyframes flip{
+  0%{transform:rotateX(0)}
+  50%{transform:rotateX(90deg)}
+  100%{transform:rotateX(0)}
+}
+
+.correct{background:#538d4e;border-color:#538d4e;color:#fff}
+.present{background:#b59f3b;border-color:#b59f3b;color:#fff}
+.absent{background:#3a3a3c;color:#fff}
 
 /* KEYBOARD */
 .row{display:flex;justify-content:center;margin:4px}
@@ -116,60 +135,118 @@ body.light #modeSwitch::after{
 
 .big{padding:14px 18px}
 
-/* KEYBOARD COLORS */
-.key.correct{background:#538d4e !important;color:white}
-.key.present{background:#b59f3b !important;color:white}
-.key.absent{background:#3a3a3c !important;color:white}
+.key.correct{background:#538d4e!important}
+.key.present{background:#b59f3b!important}
+.key.absent{background:#3a3a3c!important}
 
-#msg{height:24px;font-weight:bold;margin-top:10px}
-
-#endScreen{
+/* POPUPS */
+.popup{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:300px;
+  background:var(--bg);
+  border:2px solid var(--tile);
+  border-radius:12px;
+  padding:20px;
   display:none;
-  margin-top:20px;
-  font-size:1.2rem;
+  z-index:999;
+}
+
+.closeBtn{
+  position:absolute;
+  top:8px;
+  left:8px;
+  background:red;
+  color:white;
+  border:none;
+  border-radius:6px;
+  padding:4px 8px;
+  cursor:pointer;
+}
+
+/* CONFETTI */
+.confetti{
+  position:fixed;
+  width:8px;
+  height:8px;
+  top:0;
+  animation:fall 2s linear forwards;
+}
+
+@keyframes fall{
+  to{transform:translateY(100vh) rotate(360deg);opacity:0}
 }
 </style>
 </head>
 
 <body>
 
-<div id="switchWrap">
+<!-- TOP BAR -->
+<div id="topBar">
   <span>Dark Mode</span>
   <div id="modeSwitch" onclick="toggleMode()"></div>
   <span>Light Mode</span>
+  <button id="hintBtn" onclick="openHint()">💡 Hint</button>
 </div>
 
 <h1>WORDLE PRO</h1>
 
 <div id="board"></div>
-<div id="msg"></div>
-<div id="endScreen"></div>
 <div id="keyboard"></div>
+
+<!-- HINT -->
+<div id="hintBox" class="popup">
+  <button class="closeBtn" onclick="closeHint()">X</button>
+  <h3>Hint</h3>
+  <p id="hintText"></p>
+</div>
+
+<!-- END -->
+<div id="endBox" class="popup">
+  <button class="closeBtn" onclick="closeEnd()">X</button>
+  <h2 id="endTitle"></h2>
+  <p id="endText"></p>
+</div>
 
 <script>
 
 /* 🎯 CHANGE WORD HERE */
-const answer = "APPLE";
+const answer = "HORSE";
 
-let row=0;
-let col=0;
-let gameOver=false;
+/* AUTO HINT */
+function generateHint(word){
+  const dict = {
+    HORSE:"A strong animal used for riding and racing.",
+    APPLE:"A common fruit.",
+    HOUSE:"A place where people live.",
+    WATER:"A liquid essential for life.",
+    TRAIN:"A vehicle on tracks."
+  };
+  return dict[word] || ("The word has " + word.length + " letters.");
+}
 
-let grid = Array(6).fill("").map(()=>Array(5).fill(""));
+const hint = generateHint(answer);
+
+let row = 0;
+let col = 0;
+let gameOver = false;
+
+let used = new Set();
+let grid = Array.from({length:6},()=>Array(5).fill(""));
 
 const board = document.getElementById("board");
-const msgEl = document.getElementById("msg");
-const endScreen = document.getElementById("endScreen");
 const kb = document.getElementById("keyboard");
 
-/* BOARD */
+/* BUILD BOARD */
 for(let i=0;i<30;i++){
-  let d=document.createElement("div");
-  d.className="tile";
+  const d = document.createElement("div");
+  d.className = "tile";
   board.appendChild(d);
 }
 
-function updateBoard(){
+function render(){
   for(let r=0;r<6;r++){
     for(let c=0;c<5;c++){
       board.children[r*5+c].textContent = grid[r][c];
@@ -177,140 +254,148 @@ function updateBoard(){
   }
 }
 
-function msg(t){ msgEl.textContent=t; }
-
-/* KEYBOARD COLOR UPDATE (IMPORTANT FIX) */
+/* KEY COLORS */
 function colorKey(letter,cls){
   document.querySelectorAll(".key").forEach(k=>{
-    if(k.dataset.k!==letter) return;
-
-    if(cls==="correct"){
-      k.classList.remove("present","absent");
-      k.classList.add("correct");
-    }
-    else if(cls==="present"){
-      if(!k.classList.contains("correct")){
-        k.classList.remove("absent");
-        k.classList.add("present");
-      }
-    }
-    else if(cls==="absent"){
-      if(!k.classList.contains("correct") && !k.classList.contains("present")){
-        k.classList.add("absent");
-      }
+    if(k.dataset.k === letter){
+      k.classList.remove("correct","present","absent");
+      k.classList.add(cls);
     }
   });
 }
 
-/* END SCREEN */
-function showEnd(win){
-  gameOver=true;
-  document.onkeydown=null;
-  endScreen.style.display="block";
+/* CONFETTI */
+function confetti(){
+  for(let i=0;i<50;i++){
+    const d=document.createElement("div");
+    d.className="confetti";
+    d.style.left=Math.random()*100+"vw";
+    d.style.background=["#538d4e","#b59f3b","#fff"][Math.random()*3|0];
+    document.body.appendChild(d);
+    setTimeout(()=>d.remove(),2000);
+  }
+}
 
-  if(win){
-    endScreen.innerHTML="🎉 You Win!";
-  } else {
-    endScreen.innerHTML =
-      "Better Luck Next Time<br>Word Was: " + answer;
+/* END */
+function showEnd(win){
+  gameOver = true;
+
+  document.getElementById("endBox").style.display = "block";
+
+  document.getElementById("endTitle").textContent =
+    win ? "🎉 You Win!" : "Better Luck Next Time";
+
+  document.getElementById("endText").textContent =
+    win ? "" : ("Word Was: " + answer);
+
+  if(win) confetti();
+}
+
+/* INPUT CORE (ONLY SYSTEM) */
+function input(key){
+  if(gameOver) return;
+
+  key = key.toUpperCase();
+
+  if(key === "ENTER"){
+    submit();
+    return;
+  }
+
+  if(key === "BACKSPACE"){
+    if(col > 0){
+      col--;
+      grid[row][col] = "";
+      render();
+    }
+    return;
+  }
+
+  if(/^[A-Z]$/.test(key)){
+    if(col < 5){
+      grid[row][col] = key;
+      col++;
+      render();
+    }
   }
 }
 
 /* SUBMIT */
 function submit(){
-  if(gameOver) return;
-
   const guess = grid[row].join("");
 
-  if(guess.length<5){
-    return msg("Not enough letters");
-  }
+  if(guess.length < 5) return;
+
+  if(used.has(guess)) return;
+  used.add(guess);
 
   for(let i=0;i<5;i++){
     const tile = board.children[row*5+i];
+    tile.classList.add("flip");
 
-    if(guess[i]===answer[i]){
-      tile.classList.add("correct");
-      colorKey(guess[i],"correct");
-    }
-    else if(answer.includes(guess[i])){
-      tile.classList.add("present");
-      colorKey(guess[i],"present");
-    }
-    else{
-      tile.classList.add("absent");
-      colorKey(guess[i],"absent");
-    }
+    setTimeout(()=>{
+      if(guess[i] === answer[i]){
+        tile.classList.add("correct");
+        colorKey(guess[i],"correct");
+      }
+      else if(answer.includes(guess[i])){
+        tile.classList.add("present");
+        colorKey(guess[i],"present");
+      }
+      else{
+        tile.classList.add("absent");
+        colorKey(guess[i],"absent");
+      }
+    },200);
   }
 
-  if(guess===answer){
-    showEnd(true);
+  if(guess === answer){
+    setTimeout(()=>showEnd(true),600);
     return;
   }
 
   row++;
-  col=0;
+  col = 0;
 
-  if(row===6){
+  if(row === 6){
     showEnd(false);
   }
 }
 
-/* INPUT */
-function press(k){
-  if(gameOver) return;
+/* KEYBOARD */
+function buildKeyboard(){
+  const rows = ["QWERTYUIOP","ASDFGHJKL","ENTER ZXCVBNM BACKSPACE"];
 
-  if(k==="ENTER") return submit();
+  rows.forEach(r=>{
+    const div = document.createElement("div");
+    div.className = "row";
 
-  if(k==="BACK"){
-    if(col>0){
-      col--;
-      grid[row][col]="";
-      updateBoard();
-    }
-    return;
-  }
+    r.split(" ").forEach(part=>{
+      if(part==="ENTER"||part==="BACKSPACE"){
+        const b=document.createElement("button");
+        b.className="key big";
+        b.textContent = part==="BACKSPACE" ? "⌫" : "ENTER";
+        b.onclick=()=>input(part);
+        div.appendChild(b);
+      } else {
+        [...part].forEach(ch=>{
+          const b=document.createElement("button");
+          b.className="key";
+          b.textContent=ch;
+          b.dataset.k=ch;
+          b.onclick=()=>input(ch);
+          div.appendChild(b);
+        });
+      }
+    });
 
-  if(col<5 && /^[A-Z]$/.test(k)){
-    grid[row][col]=k;
-    col++;
-    updateBoard();
-  }
+    kb.appendChild(div);
+  });
 }
 
-/* KEYBOARD */
-["QWERTYUIOP","ASDFGHJKL","ENTER ZXCVBNM BACK"].forEach(r=>{
-  let rowDiv=document.createElement("div");
-  rowDiv.className="row";
-
-  r.split(" ").forEach(part=>{
-    if(part==="ENTER"||part==="BACK"){
-      let b=document.createElement("button");
-      b.className="key big";
-      b.textContent=part==="BACK"?"⌫":"ENTER";
-      b.onclick=()=>press(part);
-      rowDiv.appendChild(b);
-    } else {
-      [...part].forEach(ch=>{
-        let b=document.createElement("button");
-        b.className="key";
-        b.textContent=ch;
-        b.dataset.k=ch;
-        b.onclick=()=>press(ch);
-        rowDiv.appendChild(b);
-      });
-    }
-  });
-
-  kb.appendChild(rowDiv);
-});
-
-/* KEYBOARD INPUT */
-document.addEventListener("keydown",e=>{
-  const k=e.key.toUpperCase();
-  if(/^[A-Z]$/.test(k)) press(k);
-  else if(k==="ENTER") press("ENTER");
-  else if(k==="BACKSPACE") press("BACK");
+/* PHYSICAL KEYBOARD (FIXED) */
+document.addEventListener("keydown",(e)=>{
+  input(e.key);
 });
 
 /* MODE */
@@ -318,7 +403,23 @@ function toggleMode(){
   document.body.classList.toggle("light");
 }
 
-updateBoard();
+/* HINT */
+function openHint(){
+  document.getElementById("hintText").textContent = hint;
+  document.getElementById("hintBox").style.display = "block";
+}
+
+function closeHint(){
+  document.getElementById("hintBox").style.display = "none";
+}
+
+function closeEnd(){
+  document.getElementById("endBox").style.display = "none";
+}
+
+/* INIT */
+buildKeyboard();
+render();
 
 </script>
 
