@@ -87,9 +87,18 @@ function colorKey(letter, cls){
 }
 
 function submit(){
- const guess=grid[row].join("");
- if(guess.length<5 || guess.includes("")) return msg("Not enough letters");
- if(!VALID.has(guess)) return msg("Not in word list");
+    const guess = grid[row].join("");
+
+    if(col < 5){
+        return msg("Not enough letters");
+    }
+
+    if(!VALID.has(guess)){
+        return msg("Not in word list");
+    }
+
+    ...
+}
 
  for(let i=0;i<5;i++){
    const tile=board.children[row*5+i];
