@@ -326,7 +326,10 @@ function submit(){
 
   if(guess.length < 5) return;
 
-  if(used.has(guess)) return;
+ if(used.has(guess)){
+  showMessage("Word Already Guessed");
+  return;
+}
   used.add(guess);
 
   for(let i=0;i<5;i++){
