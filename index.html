@@ -63,7 +63,7 @@ h1{letter-spacing:3px}
 
 <body>
 
-<h1>WORDLE CUSTOM</h1>
+<h1>WORDLE PRO</h1>
 
 <div id="board"></div>
 <div id="msg"></div>
@@ -73,20 +73,20 @@ h1{letter-spacing:3px}
 /* =========================
    🎯 SET YOUR ANSWER HERE
 ========================= */
-const answer = "Horse"; // <-- CHANGE THIS WORD
+const answer = "APPLE";
 
-const VALID = new Set(["APPLE","TREES","HOUSE","STONE","SMILE","PLANT","WATER","HEART","BREAD","LIGHT","TRAIN","BEACH"]);
+/* simple fallback list (still used for safety) */
+const VALID = new Set(["APPLE","TREES","HOUSE","STONE","SMILE","PLANT","WATER","HEART","BREAD","LIGHT"]);
 
 let row = 0;
 let col = 0;
-
 let grid = Array(6).fill("").map(()=>Array(5).fill(""));
 
 const board = document.getElementById("board");
 const msgEl = document.getElementById("msg");
 const kb = document.getElementById("keyboard");
 
-// build board
+/* build board */
 for(let i=0;i<30;i++){
   let d=document.createElement("div");
   d.className="tile";
@@ -105,17 +105,35 @@ function msg(t){
   msgEl.textContent = t;
 }
 
-function submit(){
+/* 🌐 REAL WORD CHECK (ONLINE) */
+async function isRealWord(word){
+  try{
+    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+    return res.ok;
+  } catch(e){
+    return false; // if internet fails
+  }
+}
+
+async function submit(){
   const guess = grid[row].join("");
 
   if(guess.length < 5){
     return msg("Not enough letters");
   }
 
+  /* fallback validation */
   if(!VALID.has(guess)){
-    return msg("Not in word list");
+    msg("Checking word...");
+    
+    const real = await isRealWord(guess);
+
+    if(!real){
+      return msg("Not a real English word");
+    }
   }
 
+  /* Wordle colouring */
   for(let i=0;i<5;i++){
     const tile = board.children[row*5+i];
 
@@ -164,24 +182,24 @@ function press(k){
   }
 }
 
-// keyboard
+/* keyboard */
 ["QWERTYUIOP","ASDFGHJKL","ENTER ZXCVBNM BACK"].forEach(r=>{
   let rowDiv = document.createElement("div");
   rowDiv.className="row";
 
   r.split(" ").forEach(part=>{
-    if(part === "ENTER" || part === "BACK"){
-      let b = document.createElement("button");
-      b.className = "key big";
-      b.textContent = part === "BACK" ? "⌫" : "ENTER";
-      b.onclick = ()=>press(part);
+    if(part==="ENTER"||part==="BACK"){
+      let b=document.createElement("button");
+      b.className="key big";
+      b.textContent = part==="BACK"?"⌫":"ENTER";
+      b.onclick=()=>press(part);
       rowDiv.appendChild(b);
     } else {
       [...part].forEach(ch=>{
-        let b = document.createElement("button");
-        b.className = "key";
-        b.textContent = ch;
-        b.onclick = ()=>press(ch);
+        let b=document.createElement("button");
+        b.className="key";
+        b.textContent=ch;
+        b.onclick=()=>press(ch);
         rowDiv.appendChild(b);
       });
     }
@@ -190,12 +208,11 @@ function press(k){
   kb.appendChild(rowDiv);
 });
 
-// keyboard input
 document.addEventListener("keydown",e=>{
-  const k = e.key.toUpperCase();
+  const k=e.key.toUpperCase();
   if(/^[A-Z]$/.test(k)) press(k);
-  else if(k === "ENTER") press("ENTER");
-  else if(k === "BACKSPACE") press("BACK");
+  else if(k==="ENTER") press("ENTER");
+  else if(k==="BACKSPACE") press("BACK");
 });
 
 updateBoard();
