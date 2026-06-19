@@ -6,17 +6,74 @@
 <title>Wordle Pro</title>
 
 <style>
+:root{
+  --bg:#121213;
+  --text:#ffffff;
+  --tile:#3a3a3c;
+  --key:#818384;
+}
+
+body.light{
+  --bg:#ffffff;
+  --text:#111111;
+  --tile:#d3d6da;
+  --key:#c0c0c0;
+}
+
 body{
   font-family:system-ui,sans-serif;
-  background:#121213;
-  color:white;
+  background:var(--bg);
+  color:var(--text);
   text-align:center;
   margin:0;
   padding:20px;
+  transition:.3s;
 }
 
 h1{letter-spacing:3px}
 
+/* SWITCH */
+#switchWrap{
+  position:fixed;
+  top:12px;
+  right:12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  user-select:none;
+}
+
+#modeSwitch{
+  width:50px;
+  height:26px;
+  background:#818384;
+  border-radius:50px;
+  cursor:pointer;
+  position:relative;
+}
+
+#modeSwitch::after{
+  content:"";
+  position:absolute;
+  width:20px;
+  height:20px;
+  top:3px;
+  left:3px;
+  background:white;
+  border-radius:50%;
+  transition:.3s;
+}
+
+body.light #modeSwitch{
+  background:#4cd964;
+}
+
+body.light #modeSwitch::after{
+  transform:translateX(24px);
+}
+
+/* BOARD */
 #board{
   display:grid;
   grid-template-columns:repeat(5,62px);
@@ -28,20 +85,22 @@ h1{letter-spacing:3px}
 .tile{
   width:62px;
   height:62px;
-  border:2px solid #3a3a3c;
-  border-radius:8px;
+  border:2px solid var(--tile);
+  border-radius:10px;
   display:flex;
   align-items:center;
   justify-content:center;
   font-size:2rem;
   font-weight:700;
   text-transform:uppercase;
+  transition:.2s;
 }
 
-.correct{background:#538d4e;border-color:#538d4e}
-.present{background:#b59f3b;border-color:#b59f3b}
-.absent{background:#3a3a3c;border-color:#3a3a3c}
+.correct{background:#538d4e;border-color:#538d4e;color:white}
+.present{background:#b59f3b;border-color:#b59f3b;color:white}
+.absent{background:#3a3a3c;border-color:#3a3a3c;color:white}
 
+/* KEYBOARD */
 .row{display:flex;justify-content:center;margin:4px}
 
 .key{
@@ -49,44 +108,61 @@ h1{letter-spacing:3px}
   border-radius:6px;
   padding:14px 10px;
   margin:2px;
-  background:#818384;
-  color:white;
+  background:var(--key);
+  color:var(--text);
   font-weight:700;
   cursor:pointer;
 }
 
 .big{padding:14px 18px}
 
+/* KEYBOARD COLORS */
+.key.correct{background:#538d4e !important;color:white}
+.key.present{background:#b59f3b !important;color:white}
+.key.absent{background:#3a3a3c !important;color:white}
+
 #msg{height:24px;font-weight:bold;margin-top:10px}
+
+#endScreen{
+  display:none;
+  margin-top:20px;
+  font-size:1.2rem;
+}
 </style>
 </head>
 
 <body>
 
+<div id="switchWrap">
+  <span>Dark Mode</span>
+  <div id="modeSwitch" onclick="toggleMode()"></div>
+  <span>Light Mode</span>
+</div>
+
 <h1>WORDLE PRO</h1>
 
 <div id="board"></div>
 <div id="msg"></div>
+<div id="endScreen"></div>
 <div id="keyboard"></div>
 
 <script>
-/* =========================
-   🎯 SET YOUR ANSWER HERE
-========================= */
-const answer = "Horse";
 
-/* simple fallback list (still used for safety) */
-const VALID = new Set(["APPLE","TREES","HOUSE","STONE","SMILE","PLANT","WATER","HEART","BREAD","LIGHT"]);
+/* 🎯 CHANGE WORD HERE */
+const answer = "APPLE";
 
-let row = 0;
-let col = 0;
+let row=0;
+let col=0;
+let gameOver=false;
+
 let grid = Array(6).fill("").map(()=>Array(5).fill(""));
 
 const board = document.getElementById("board");
 const msgEl = document.getElementById("msg");
+const endScreen = document.getElementById("endScreen");
 const kb = document.getElementById("keyboard");
 
-/* build board */
+/* BOARD */
 for(let i=0;i<30;i++){
   let d=document.createElement("div");
   d.className="tile";
@@ -101,97 +177,117 @@ function updateBoard(){
   }
 }
 
-function msg(t){
-  msgEl.textContent = t;
+function msg(t){ msgEl.textContent=t; }
+
+/* KEYBOARD COLOR UPDATE (IMPORTANT FIX) */
+function colorKey(letter,cls){
+  document.querySelectorAll(".key").forEach(k=>{
+    if(k.dataset.k!==letter) return;
+
+    if(cls==="correct"){
+      k.classList.remove("present","absent");
+      k.classList.add("correct");
+    }
+    else if(cls==="present"){
+      if(!k.classList.contains("correct")){
+        k.classList.remove("absent");
+        k.classList.add("present");
+      }
+    }
+    else if(cls==="absent"){
+      if(!k.classList.contains("correct") && !k.classList.contains("present")){
+        k.classList.add("absent");
+      }
+    }
+  });
 }
 
-/* 🌐 REAL WORD CHECK (ONLINE) */
-async function isRealWord(word){
-  try{
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-    return res.ok;
-  } catch(e){
-    return false; // if internet fails
+/* END SCREEN */
+function showEnd(win){
+  gameOver=true;
+  document.onkeydown=null;
+  endScreen.style.display="block";
+
+  if(win){
+    endScreen.innerHTML="🎉 You Win!";
+  } else {
+    endScreen.innerHTML =
+      "Better Luck Next Time<br>Word Was: " + answer;
   }
 }
 
-async function submit(){
+/* SUBMIT */
+function submit(){
+  if(gameOver) return;
+
   const guess = grid[row].join("");
 
-  if(guess.length < 5){
+  if(guess.length<5){
     return msg("Not enough letters");
   }
 
-  /* fallback validation */
-  if(!VALID.has(guess)){
-    msg("Checking word...");
-    
-    const real = await isRealWord(guess);
-
-    if(!real){
-      return msg("Not a real English word");
-    }
-  }
-
-  /* Wordle colouring */
   for(let i=0;i<5;i++){
     const tile = board.children[row*5+i];
 
-    if(guess[i] === answer[i]){
+    if(guess[i]===answer[i]){
       tile.classList.add("correct");
+      colorKey(guess[i],"correct");
     }
     else if(answer.includes(guess[i])){
       tile.classList.add("present");
+      colorKey(guess[i],"present");
     }
     else{
       tile.classList.add("absent");
+      colorKey(guess[i],"absent");
     }
   }
 
-  if(guess === answer){
-    msg("🎉 You Win!");
-    document.onkeydown = null;
+  if(guess===answer){
+    showEnd(true);
     return;
   }
 
   row++;
-  col = 0;
+  col=0;
 
-  if(row === 6){
-    msg("Game Over! Word was: " + answer);
-    document.onkeydown = null;
+  if(row===6){
+    showEnd(false);
   }
 }
 
+/* INPUT */
 function press(k){
-  if(k === "ENTER") return submit();
+  if(gameOver) return;
 
-  if(k === "BACK"){
-    if(col > 0){
+  if(k==="ENTER") return submit();
+
+  if(k==="BACK"){
+    if(col>0){
       col--;
-      grid[row][col] = "";
+      grid[row][col]="";
       updateBoard();
     }
     return;
   }
 
-  if(col < 5 && /^[A-Z]$/.test(k)){
-    grid[row][col] = k;
+  if(col<5 && /^[A-Z]$/.test(k)){
+    grid[row][col]=k;
     col++;
     updateBoard();
   }
 }
 
-/* keyboard */
+/* KEYBOARD */
 ["QWERTYUIOP","ASDFGHJKL","ENTER ZXCVBNM BACK"].forEach(r=>{
-  let rowDiv = document.createElement("div");
+  let rowDiv=document.createElement("div");
   rowDiv.className="row";
 
   r.split(" ").forEach(part=>{
     if(part==="ENTER"||part==="BACK"){
       let b=document.createElement("button");
       b.className="key big";
-      b.textContent = part==="BACK"?"⌫":"ENTER";
+      b.textContent=part==="BACK"?"⌫":"ENTER";
       b.onclick=()=>press(part);
       rowDiv.appendChild(b);
     } else {
@@ -199,6 +295,7 @@ function press(k){
         let b=document.createElement("button");
         b.className="key";
         b.textContent=ch;
+        b.dataset.k=ch;
         b.onclick=()=>press(ch);
         rowDiv.appendChild(b);
       });
@@ -208,6 +305,7 @@ function press(k){
   kb.appendChild(rowDiv);
 });
 
+/* KEYBOARD INPUT */
 document.addEventListener("keydown",e=>{
   const k=e.key.toUpperCase();
   if(/^[A-Z]$/.test(k)) press(k);
@@ -215,7 +313,13 @@ document.addEventListener("keydown",e=>{
   else if(k==="BACKSPACE") press("BACK");
 });
 
+/* MODE */
+function toggleMode(){
+  document.body.classList.toggle("light");
+}
+
 updateBoard();
+
 </script>
 
 </body>
