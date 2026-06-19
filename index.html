@@ -97,9 +97,37 @@ function submit(){
         return msg("Not in word list");
     }
 
-    ...
-}
+    for(let i=0;i<5;i++){
+        const tile = board.children[row*5 + i];
 
+        if(guess[i] === answer[i]){
+            tile.classList.add("correct");
+            colorKey(guess[i], "correct");
+        }
+        else if(answer.includes(guess[i])){
+            tile.classList.add("present");
+            colorKey(guess[i], "present");
+        }
+        else {
+            tile.classList.add("absent");
+            colorKey(guess[i], "absent");
+        }
+    }
+
+    if(guess === answer){
+        msg("🎉 Brilliant!");
+        document.onkeydown = null;
+        return;
+    }
+
+    row++;
+    col = 0;
+
+    if(row === 6){
+        msg("Game Over — " + answer);
+        document.onkeydown = null;
+    }
+}
  for(let i=0;i<5;i++){
    const tile=board.children[row*5+i];
    if(guess[i]===answer[i]){tile.classList.add("correct");colorKey(guess[i],"correct");}
