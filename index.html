@@ -198,14 +198,14 @@ body.dark #modeSwitch::after{
 /* =========================
    LOCKED GAME (NO RESET CHEAT)
 ========================= */
-const CURRENT_ANSWER = "POPPY";
-  const SAVE_KEY = "wordle_pro_locked_v10";
+const CURRENT_ANSWER = "TESTS";
+  const SAVE_KEY = "wordle_pro_locked_v11";
 /* Create persistent game ONCE */
 let save = JSON.parse(localStorage.getItem(SAVE_KEY));
 
 if(!save){
   save = {
-    answer: "POPPY",
+    answer: "TESTS",
     row:0,
     col:0,
     used:[],
