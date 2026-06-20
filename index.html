@@ -64,7 +64,20 @@ h1{letter-spacing:3px}
   transition:.3s;
 }
 
-body.dark #modeSwitch{
+async function isRealWord(word){
+  try{
+    const res = await fetch(
+      "https://api.dictionaryapi.dev/api/v2/entries/en/" +
+      word.toLowerCase()
+    );
+
+    return res.ok;
+  }
+  catch{
+    return false;
+  }
+}
+  body.dark #modeSwitch{
   background:#4cd964;
 }
 
@@ -322,9 +335,14 @@ document.addEventListener("keydown",(e)=>{
 /* =========================
    SUBMIT
 ========================= */
-function submit(){
+async function submit(){
   const guess = grid[row].join("");
+const realWord = await isRealWord(guess);
 
+if(!realWord){
+  showMessage("Not In Word List");
+  return;
+}
   if(guess.length<5) return;
 
   if(used.has(guess)){
