@@ -64,20 +64,7 @@ h1{letter-spacing:3px}
   transition:.3s;
 }
 
-async function isRealWord(word){
-  try{
-    const res = await fetch(
-      "https://api.dictionaryapi.dev/api/v2/entries/en/" +
-      word.toLowerCase()
-    );
-
-    return res.ok;
-  }
-  catch{
-    return false;
-  }
-}
-  body.dark #modeSwitch{
+body.dark #modeSwitch{
   background:#4cd964;
 }
 
@@ -212,7 +199,7 @@ body.dark #modeSwitch::after{
    LOCKED GAME (NO RESET CHEAT)
 ========================= */
 const CURRENT_ANSWER = "POPPY";
-  const SAVE_KEY = "wordle_pro_locked_v9";
+  const SAVE_KEY = "wordle_pro_locked_v8";
 /* Create persistent game ONCE */
 let save = JSON.parse(localStorage.getItem(SAVE_KEY));
 
@@ -335,14 +322,9 @@ document.addEventListener("keydown",(e)=>{
 /* =========================
    SUBMIT
 ========================= */
-async function submit(){
+function submit(){
   const guess = grid[row].join("");
-const realWord = await isRealWord(guess);
 
-if(!realWord){
-  showMessage("Not In Word List");
-  return;
-}
   if(guess.length<5) return;
 
   if(used.has(guess)){
